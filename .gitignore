@@ -1,6 +1,6 @@
 # Environments
 .env
-# .env.prodを.gitignoreする
+# .env.prod
 .env.prod
 .venv
 env/
