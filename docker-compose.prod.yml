@@ -1,0 +1,61 @@
+# docker-compose versão
+version: "3.9"
+
+# db(Postgres),app(Django)
+services:
+  db:
+    container_name: postgres
+    build:
+      context: .
+      dockerfile: containers/postgres/Dockerfile
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: pg_isready -U "${POSTGRES_USER:-postgres}" || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    # Variáveis de ambiente para produção
+    env_file:
+      - .env.prod
+  app:
+    container_name: app
+    build:
+      context: .
+      dockerfile: containers/django/Dockerfile
+    volumes:
+      - .:/code
+      - ./static:/static
+    # Abre a porta 8000 para que o Nginx possa conectar
+    expose:
+      - "8000"
+    # Roda script
+    command: sh -c "/usr/local/bin/entrypoint.sh"
+    # Variáveis do container
+    env_file:
+      - .env.prod
+    depends_on:
+      db:
+        condition: service_healthy
+  web:
+    # Container para o Nginx
+    container_name: web
+    # Dockerfile para Nginx
+    build:
+      context: .
+      dockerfile: containers/nginx/Dockerfile
+    # Volume static
+    volumes:
+      - ./static:/static
+    # Conecta a porta 80 local com o container
+    ports:
+      - "80:80"
+    # Incia primeiro o app, depois web
+    depends_on:
+      - app
+volumes:
+  db_data:
+  static:

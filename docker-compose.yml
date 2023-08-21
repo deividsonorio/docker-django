@@ -1,0 +1,56 @@
+# docker-compose versão
+version: "3.9"
+
+# db(Postgres),app(Django)
+services:
+  db:
+    # Nome do container
+    container_name: postgres
+    # PostgreSQLのDockerfileをビルドする
+    build:
+      # Dockerfile do PostgreSQL
+      context: .
+      dockerfile: containers/postgres/Dockerfile
+    # Para funcionar com chip M1
+    # Com ou sem Intel Mac
+    platform: linux/x86_64
+    # Volume do banco de dados
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    # Checa saúde do banco
+    healthcheck:
+      test: pg_isready -U "${POSTGRES_USER:-postgres}" || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    # Variáveis do container usando .env
+    env_file:
+      - .env
+  app:
+    container_name: app
+    build:
+      # Dockerfile do Django
+      context: .
+      dockerfile: containers/django/Dockerfile
+    # Volumes do código e arquivos estáticos
+    volumes:
+      - .:/code
+      - ./static:/static
+    # Conecta a porta local 8000 e a porta do container 8000
+    ports:
+      - "8000:8000"
+    # Executa o script
+    command: sh -c "entrypoint.sh"
+    # Definir variáveis de ambiente dentro do container usando .env
+    env_file:
+      - .env
+    # Inicia o db primeiro, depois o app
+    depends_on:
+      db:
+        condition: service_healthy
+volumes:
+  db_data:
+  static:
